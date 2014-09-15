@@ -1,0 +1,43 @@
+#set ( $sib  = $_XPathTool.selectSingleNode($contentRoot, "/system-index-block") )
+#set ( $moduleNodes = $_XPathTool.selectNodes($sib, "//system-file") )
+
+#set ( $targetContent = $_.locateFile($targetPath.value,$targetSite.value) )
+<html>
+<head>
+<link href="/-publish/style.css" rel="stylesheet" type="text/css"/>
+</head>
+<body>
+<form action="https://fast.svcc.edu/scss/-publish/pushSubscriberFiles.php" target="_blank" method="post">
+<input type="hidden" name="publishURL" id="publishURL" value="https://fast.svcc.edu/scss"/>
+<ol>
+<li><fieldset><legend><h2>Select Modules</h2></legend>
+<ul>
+#set ( $modulesContent = "" )
+#foreach ( $module in $moduleNodes )
+#set ( $moduleID = $_XPathTool.selectSingleNode($module, "@id") )
+#set ( $moduleName = $_XPathTool.selectSingleNode($module, "path") )
+#if ($moduleName)
+<li><input type="checkbox" id="${moduleID.value}" value="${moduleID.value}" name="module[]" /> <label for="${moduleID.value}">${moduleName.value.replace('/-modules/','')}</label></li>
+#set ( $modulesContent = $modulesContent + $_EscapeTool.xml($moduleContent.text) )
+#end
+#end
+#if ($modulesContent == "" )
+<li>None</li>
+#end
+</ul>
+</fieldset>
+</li>
+<li>
+  <label class="besideRight" for="publishTarget">
+  <input id="publishTarget" name="publishTarget" title="Publish Target CSS File" value="Yes" type="checkbox" /> Publish Target CSS Files </label>
+</li>
+<li>
+  <label class="besideRight" for="minify">
+  <input type="checkbox" name="minify" id="minify" value="Yes" title="Minify Target CSS File" /> Minify Target CSS Files </label>
+</li>
+<li><input type="submit" value=" Compile SCSS "/></li>
+</ol>
+</form>
+
+</body>
+</html>

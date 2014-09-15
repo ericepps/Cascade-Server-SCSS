@@ -1,0 +1,6 @@
+<system-data-structure>
+  <text identifier="username" label="WS User" size="10"/>
+  <text identifier="password" label="WS Password" size="10"/>
+  <text identifier="cascadeURL" label="Cascade Server URL" size="20"/>
+  <text identifier="publishURL" label="Publish Site URL" size="20"/>
+</system-data-structure>

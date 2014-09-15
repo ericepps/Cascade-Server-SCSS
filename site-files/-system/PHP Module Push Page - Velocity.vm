@@ -1,0 +1,28 @@
+#set ( $sds = $_XPathTool.selectSingleNode($contentRoot, "/system-data-structure") )
+#import ('/-system/PHP Web Services Include')
+<h1>CSS File(s) Compiled/Pushed</h1>
+<?php
+$scssPages = array();
+foreach($clean['module'] as $fileID) {
+    
+	// get related pages, load into array de-duplicated
+	$identifier = array ('id' => $fileID, 'type' => 'file');
+	
+	$listSubscribersParams = array ('authentication' => $auth, 'identifier' => $identifier);
+	$reply = $cascade->listSubscribers($listSubscribersParams);
+	if ($reply->listSubscribersReturn->success=='true') {
+		$subscribers = $reply->listSubscribersReturn->subscribers->assetIdentifier;
+		if (sizeof($subscribers)==0) {
+			exit;
+		} else if (!is_array($subscribers)) // For less than 2 elements, the returned object isn't an array
+			$subscribers=array($subscribers);
+	
+		foreach($subscribers as $identifier) {
+			if (!in_array(array($identifier->type,$identifier->path->siteName,$identifier->path->path),$scssPages)) 
+				array_push($scssPages, array($identifier->type,$identifier->path->siteName,$identifier->path->path));
+		}
+	}
+	else echo "Error occurred: " . $reply->listSubscribersReturn->message;
+}
+compilePages($scssPages);
+?>

@@ -1,0 +1,5 @@
+<system-data-structure>
+  <asset type="file" identifier="targetFile" label="Target File"/>
+  <asset type="file" identifier="modules" label="Module(s)" multiple="true" render-content-depth="2"/>
+  <text multi-line="true" identifier="css" label="Additional SCSS Rules" rows="20" cols="100"/>
+</system-data-structure>

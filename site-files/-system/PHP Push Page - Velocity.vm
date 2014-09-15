@@ -1,0 +1,5 @@
+#set ( $sds = $_XPathTool.selectSingleNode($contentRoot, "/system-data-structure") )
+#import ('/-system/PHP Web Services Include')
+<?php
+pushPage($clean);
+?>

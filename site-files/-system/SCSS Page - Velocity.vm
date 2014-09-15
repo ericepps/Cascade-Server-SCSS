@@ -1,0 +1,66 @@
+#set ( $sds = $_XPathTool.selectSingleNode($contentRoot, "/system-data-structure") )
+#set ( $targetSite = $_XPathTool.selectSingleNode($sds, "targetFile/site") )
+#set ( $targetPath = $_XPathTool.selectSingleNode($sds, "targetFile/path") )
+#set ( $targetLink = $_XPathTool.selectSingleNode($sds, "targetFile/link") )
+#set ( $minify = $_XPathTool.selectSingleNode($sds, "minify") )
+#set ( $scssContent = $_XPathTool.selectSingleNode($sds, "css") )
+#set ( $moduleNodes = $_XPathTool.selectNodes($sds, "//modules") )
+
+#set ( $targetContent = $_.locateFile($targetPath.value,$targetSite.value) )
+#set ( $publishInfo = $_.locateBlock('/-system/--Web Services Authentication') )
+#set ( $publishURL = $publishInfo.getStructuredDataNode('publishURL').textValue )
+
+<html>
+<head><link href="/-publish/style.css" rel="stylesheet" type="text/css"/>
+<script language="javascript" type="text/javascript" src="/-publish/edit_area/edit_area_full.js"></script>
+<script type="text/javascript">
+// initialize code coloring
+// http://www.cdolivet.com/index.php?page=editArea
+editAreaLoader.init({ id : "scssContent", syntax: "css", start_highlight: true, allow_toggle: false, is_editable: false });
+</script>
+
+</head>
+<body>
+<div><strong>CSS Target</strong> &#8212; <a href="/entity/open.act?id=${targetContent.identifer.id}&amp;type=file" target="_blank">${targetLink.value}</a></div>
+<div><strong>Modules</strong> &#8212; 
+<ul class="modules">
+#set ( $modulesContent = "" )
+#foreach ( $module in $moduleNodes )
+#set ( $moduleSite = $_XPathTool.selectSingleNode($module, "site") )
+#set ( $modulePath = $_XPathTool.selectSingleNode($module, "path") )
+#set ( $moduleName = $_XPathTool.selectSingleNode($module, "name") )
+#if ($moduleName)
+#set ( $moduleFullPath = $modulePath.value + '/' + $moduleName.value )
+#set ( $moduleContent = $_.locateFile($modulePath.value,$moduleSite.value) )
+<li><a href="/entity/open.act?id=${moduleContent.identifer.id}&amp;type=file" target="_parent">${moduleName.value}</a></li>
+#set ( $modulesContent = $modulesContent + $_EscapeTool.xml($moduleContent.text) )
+#end
+#end
+#if ($modulesContent == "" )
+<li>None</li>
+#end
+</ul>
+</div>
+<form action="${publishURL}/-publish/pushFile.php" target="_blank" method="post">
+<input type="hidden" name="targetSite" id="targetSite" value="${targetSite.value}"/>
+<input type="hidden" name="targetPath" id="targetPath" value="${targetPath.value}"/>
+<ol>
+<li><label for="scssContent">(S)CSS Content</label><textarea name="scssContent" id="scssContent" style="width:100%;" rows="15">
+${modulesContent}
+${scssContent.value}
+</textarea>
+</li>
+<li>
+  <label class="besideRight" for="publishTarget">
+  <input id="publishTarget" name="publishTarget" title="Publish Target CSS File" value="Yes" type="checkbox" /> Publish Target CSS File </label>
+</li>
+<li>
+  <label class="besideRight" for="minify">
+  <input type="checkbox" name="minify" id="minify" value="Yes" title="Minify Target CSS File" /> Minify Target CSS File </label>
+</li>
+<li><input type="submit" value=" Compile SCSS "/></li>
+</ol>
+</form>
+
+</body>
+</html>

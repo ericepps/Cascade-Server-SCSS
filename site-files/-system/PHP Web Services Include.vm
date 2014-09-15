@@ -1,0 +1,145 @@
+#set ( $wsBlock = $_.locateBlock('/-system/--Web Services Authentication') )
+#set ( $wsUser = $wsBlock.getStructuredDataNode("username").textValue )
+#set ( $wsPath = $wsBlock.getStructuredDataNode("cascadeURL").textValue )
+#set ( $wsPwd = $wsBlock.getStructuredDataNode("password").textValue )
+
+<?php
+#if ( $_PropertyTool.isNull($wsUser) || $_PropertyTool.isNull($wsPath) || $_PropertyTool.isNull($wsPwd) ) 
+    echo '<p class="error">To push CSS files, the Web Services Authentication properties must be set in <a href="'.substr($_SERVER['HTTP_REFERER'],0,strpos($_SERVER['HTTP_REFERER'],'/render')).'/entity/open.act?id=${wsBlock.identifer.id}&amp;type=block" target="_blank">/-system/--Web Services Authentication</a>. After that, please republish the "-publish" folder.</p>';
+    die();
+#end
+ini_set('display_errors','on');
+$cascade = new SoapClient("${wsPath}" . "/ws/services/AssetOperationService?wsdl",array('trace' => 1));
+$auth = array('username' => "${wsUser}", 'password' => "${wsPwd}" );
+foreach($_POST as $key=>$value) {
+    if (is_array($value)) {
+        foreach($value as $key2=>$value2) {
+			$clean[$key][$key2]=htmlspecialchars($value2);
+		}
+	} else {
+		$clean[$key]=htmlspecialchars($value);
+	}
+}
+function writeToLog($value) {
+    echo '<p class="result">'.$value.'</p>';
+}
+function getResult($result,$fullName) {
+    if (!isSuccess($result)) {
+		writeToLog($fullName."\nError:\n".extractMessage($result));
+	} else {
+		writeToLog($fullName." - Page Added");
+	}
+}
+function getResultAction($result,$fullName,$action) {
+	if (!isSuccess($result)) {
+		writeToLog($fullName."\nError:\n".extractMessage($result));
+	} else {
+		writeToLog($fullName." - Page ".$action);
+	}
+}
+function isSuccess($text) {
+	return substr($text, strpos($text, "<success>")+9,4)=="true";
+}
+function extractMessage($text) {
+	return substr($text, strpos($text, "<message>")+9,strpos($text, "</message>")-(strpos($text, "<message>")+9));
+}
+function extractID($text) {
+	return substr($text, strpos($text, "<createdAssetId>")+16,strpos($text, "</createdAssetId>")-(strpos($text, "<createdAssetId>")+16));
+}
+
+function pushPage($clean) {
+    global $auth;
+	global $cascade;
+	require_once "scssphp/scss.inc.php";
+	require_once "cssmin/cssmin-v3.0.1.php";
+	$scss = new scssc();
+    ob_start();
+	if (!isset($clean['targetID'])) {
+		$path = array('path' => $clean['targetPath'], 'siteName' => $clean['targetSite']);
+		$id = array('path' => $path, 'type' => 'file');
+	} else {
+		$id = array('id' => $clean['targetID'], 'type' => 'file');
+	}
+	$readParams = array( 'authentication' => $auth, 'identifier' => $id );				
+	$fileRead=$cascade->read($readParams);
+	$asset = $fileRead->readReturn->asset->file;
+	$theCSS = $scss->compile(htmlspecialchars_decode($clean['scssContent']));
+	writeToLog('SCSS Compiled');
+	if($clean['minify'] == 'Yes') {
+	  $theCSS = CssMin::minify($theCSS);
+	  writeToLog('SCSS Minified');
+	}
+	$asset->text = $theCSS;
+	
+	$editParams = array('authentication' => $auth, 'asset' => array('file' => $asset));
+	if ($asset->name != '') {
+		$cascade->edit($editParams);
+		$result = $cascade->__getLastResponse();
+		getResultAction($result,$asset->path,' updated.');
+	}
+	if ($clean['publishTarget'] == 'Yes') {
+		$publishInformation = array( 'identifier' => $id );
+		$publishParams = array( 'authentication' => $auth, 'publishInformation' => $publishInformation );				
+	
+		$cascade->publish($publishParams);
+		$result = $cascade->__getLastResponse();
+		getResultAction($result,$asset->path,' published.');
+	}
+    ob_end_flush();
+}
+
+function compilePages($scssPages) {
+    global $auth;
+    global $cascade;
+    global $clean;
+    echo '<ul class="results">';
+	foreach($scssPages as $thePage) {
+		echo '<li><h2>'.$thePage[2].'</h2>';
+		$path = array('path' => $thePage[2], 'siteName' => $thePage[1]);
+		$id = array('path' => $path, 'type' => $thePage[0]);
+		$readParams = array( 'authentication' => $auth, 'identifier' => $id );				
+		$pageRead=$cascade->read($readParams);
+		$result = $cascade->__getLastResponse();
+		
+		$sdNodes = $pageRead->readReturn->asset->page->structuredData->structuredDataNodes->structuredDataNode;
+		$arrModules = array();
+		foreach($sdNodes as $sdNode) {
+			$arrSDNode = (array)$sdNode;
+			switch ($arrSDNode['identifier']) {
+				case 'targetFile':
+					$strTargetID = $arrSDNode['fileId'];
+					break;
+				case 'modules':
+					array_push($arrModules, $arrSDNode);
+					break;
+				case 'css':
+					$strAddlCSS = $arrSDNode['text'];
+					break;
+			}
+		}
+		$strCSS = '';
+		foreach ($arrModules as $arrModule) {
+			$id = array('id' => $arrModule['fileId'], 'type' => 'file');
+			$readModParams = array( 'authentication' => $auth, 'identifier' => $id );				
+			$modRead=$cascade->read($readModParams);
+			$modResult = $cascade->__getLastResponse();
+			$strCSS .= $modRead->readReturn->asset->file->text . $modRead->readReturn->asset->file->data;
+		}
+		$strCSS .= $strAddlCSS;
+		
+		$publishTarget = '';
+		if(isset($clean['publishTarget'])) $publishTarget = $clean['publishTarget'];
+		$minify = '';
+		if(isset($clean['minify'])) $minify = $clean['minify'];
+		$fields = array(
+			'targetID' => $strTargetID,
+			'scssContent' => $strCSS,
+			'publishTarget' => $publishTarget,
+			'minify' => $minify );
+		pushPage($fields);
+		echo '</li>';
+	}
+	echo '</ul>';
+}
+
+?>
